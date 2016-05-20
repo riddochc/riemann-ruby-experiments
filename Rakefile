@@ -4,6 +4,7 @@ require 'yaml'
 require 'find'
 require 'asciidoctor'
 require 'erb'
+require 'pry'
 
 def installed_gem_version(name)
   IO.popen(["gem", "list", "-l", name], 'r') do |io|
@@ -14,7 +15,11 @@ end
 
 def filtered_project_files()
   Dir.chdir __dir__ do
-    Find.find(".").reject {|f| !File.file?(f) || f =~ %r{^\./(.git|tmp)} || f =~ %r{\.(so|gem)$} }.map {|f| f.sub %r{^\./}, '' }
+    Find.find(".").reject {|f|
+      !File.file?(f) ||
+       f =~ %r{^\./(.git|tmp)} ||
+       f =~ %r{\.(so|gem)$}
+    }.map {|f| f.sub %r{^\./}, '' }
   end
 end
 
@@ -64,7 +69,13 @@ Gem::Specification.new do |s|
 end
 GEMSPEC
 
-task default: [:gen_version, :gemspec, :gemfile, :build]
+task default: ["lib/riemann-ruby-experiments/riemann.pb.rb",
+               :gen_version, :gemspec, :gemfile, :build]
+
+task "lib/riemann-ruby-experiments/riemann.pb.rb" do
+  sh "ruby-protoc", "data/riemann.proto"
+  mv "data/riemann.pb.rb", "lib/riemann-ruby-experiments/riemann.pb.rb"
+end
 
 task :gen_version do
   File.open(File.join("lib", project, "version.rb"), 'w') {|f|
@@ -86,7 +97,7 @@ task :gemspec => [:gen_version] do
   end
 
   requires = all_files.grep(/\.rb$/).
-                           map {|f| File.readlines(f).grep (/^\s*require(?!_relative)/) }.
+                           map {|f| File.readlines(f).grep (/^\s*require(?!_relative)\b/) }.
                            flatten.
                            map {|line| line.split(/['"]/).at(1).split('/').at(0) }.
                            uniq

@@ -13,9 +13,11 @@ Gem::Specification.new do |s|
                    "Rakefile",
                    "data/riemann.proto",
                    "lib/riemann-ruby-experiments/main.rb",
+                   "lib/riemann-ruby-experiments/riemann.pb.rb",
                    "lib/riemann-ruby-experiments/version.rb",
                    "lib/riemann-ruby-experiments.rb",
-                   "project.yaml"]
+                   "project.yaml",
+                   "riemann-ruby-experiments.gemspec"]
   s.homepage    = "https://syntacticsugar.org/projects/riemann-ruby-experiments"
 
   s.add_dependency "ruby-protocol-buffers", ">= 1.6.1"
