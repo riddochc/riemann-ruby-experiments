@@ -1,0 +1,47 @@
+= riemann-ruby-experiments
+Chris Riddoch <riddochc@gmail.com>
+:language: ruby
+:homepage: https://syntacticsugar.org/projects/riemann-ruby-experiments
+:revnumber: 0.0.1
+:revdate: 2016-05-19
+
+== Description
+
+A Riemann client for ruby
+
+Just another client, to experiment with.
+
+== Requirements
+
+* A riemann server to talk to
+
+== Installation
+
+gem install riemann-ruby-experiments
+
+== Use
+
+Include the following line in your Gemfile:
+
+  gem 'riemann-ruby-experiments'
+
+== Contributing
+
+Pull requests welcome.
+
+== Contributors
+
+* Chris Riddoch
+
+== History
+
+=== Version 0.0.1
+
+* Initial release, yay!
+
+== License
+
+Copyright © 2016 Chris Riddoch
+
+See LICENSE for license details
+
