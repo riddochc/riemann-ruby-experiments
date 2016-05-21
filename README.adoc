@@ -25,6 +25,19 @@ Include the following line in your Gemfile:
 
   gem 'riemann-ruby-experiments'
 
+Then, you can use it like this:
+
+  c = Riemann::Experiment::Client.new(host: Socket.gethostname, service: "A new riemann logger!")
+  e = {time: Time.now.to_i,
+       description: "An event of some sort"}
+  r = c.send_event(e)
+
+Or:
+
+  c = Riemann::Experiment::Client.new(:host => :default, :service => :default)
+  e = {description: "An event of some sort", metric: 42.73, a: 1, b: 2}
+  r = c.send_event(e)
+
 == Contributing
 
 Pull requests welcome.
