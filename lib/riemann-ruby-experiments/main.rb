@@ -39,6 +39,7 @@ module Riemann::Experiment
 
     def add_event(*rest)
       e = Riemann::Experiment::Event.new(self)
+      e.time = Time.now.to_i
       e.build(*rest)
       @pending_events.push(e)
     end
