@@ -2,8 +2,8 @@
 Chris Riddoch <riddochc@gmail.com>
 :language: ruby
 :homepage: https://syntacticsugar.org/projects/riemann-ruby-experiments
-:revnumber: 0.0.1
-:revdate: 2016-05-19
+:revnumber: 0.0.2
+:revdate: 2016-05-29
 
 == Description
 
@@ -27,16 +27,21 @@ Include the following line in your Gemfile:
 
 Then, you can use it like this:
 
-  c = Riemann::Experiment::Client.new(host: Socket.gethostname, service: "A new riemann logger!")
-  e = {time: Time.now.to_i,
-       description: "An event of some sort"}
-  r = c.send_event(e)
+  c = Riemann::Experiment::Client.new(server: "localhost:5555", service: "A new riemann logger!")
+  h = {time: Time.now.to_i,
+       description: "An event of some sort",
+       metric: 42.15,
+       anotherkey: "anothervalue"}
+  c.add_event(h)
+  
+  h2 = {time: Time.now.to_i, description: "Another event", metric: 73}
+  c.add_event(h2)
+  
+  response = c.send_message(:ok => "ok")
 
-Or:
-
-  c = Riemann::Experiment::Client.new(:host => :default, :service => :default)
-  e = {description: "An event of some sort", metric: 42.73, a: 1, b: 2}
-  r = c.send_event(e)
+  if response.ok == 'ok'
+    # acknowledged by server...
+  end
 
 == Contributing
 

@@ -7,7 +7,7 @@ Gem::Specification.new do |s|
   s.description = "Just another client, to experiment with."
   s.authors     = ["Chris Riddoch"]
   s.email       = "riddochc@gmail.com"
-  s.date        = "2016-05-28"
+  s.date        = "2016-05-29"
   s.files       = ["Gemfile",
                    "README.adoc",
                    "Rakefile",
