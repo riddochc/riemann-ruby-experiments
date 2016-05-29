@@ -21,13 +21,12 @@ module Riemann::Experiment
       @default_ttl = options.delete(:ttl)
       @pending_events = []
 
-
       @keepalive_active = options.delete(:keepalive_active) || true
       @keepalive_idle   = options.delete(:keepalive_idle) || 60
       @keepalive_interval = options.delete(:keepalive_interval) || 30
       @keepalive_count = options.delete(:keepalive_count) || 5
 
-      options.merge!(default_opts)
+      options = default_opts.merge(options)
       options.delete(:buffered)
       options[:buffered] = false
       super(options)
