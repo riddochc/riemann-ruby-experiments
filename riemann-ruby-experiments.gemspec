@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name        = "riemann-ruby-experiments"
-  s.version     = "0.0.1"
+  s.version     = "0.0.2"
   s.licenses    = ["LGPL-3.0"]
   s.platform    = Gem::Platform::RUBY
   s.summary     = "A Riemann client for ruby"
