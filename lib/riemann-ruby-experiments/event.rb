@@ -80,7 +80,7 @@ module Riemann::Experiment
       if ms.end_with?("=") && ms.length >= 2
         a = Attribute.new
         a.key = ms[0..-2]
-        a.value = rest.first
+        a.value = rest.first.to_s
         @e.attributes << a
       else
         super
