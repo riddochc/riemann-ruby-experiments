@@ -52,9 +52,9 @@ module Riemann::Experiment
         e.maybe_apply_defaults
         m.events << e.protobuf
       }
-      exchange(m.to_s)
+      r = exchange(m.to_s)
       @pending_events = []
-      m
+      r
     end
 
     # Writes a riemann message to socket.
