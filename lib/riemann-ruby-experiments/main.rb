@@ -1,14 +1,13 @@
 module Riemann::Experiment
   class Client < Net::TCPClient
     attr_reader :keepalive_active, :keepalive_idle, :keepalive_interval, :keepalive_count
-    attr_accessor :host
+    attr_accessor :default_host, :default_service, :default_tags, :default_ttl, :pending_events
 
     # service and host can be assigned to :default here,
     # to use a string generated from process info and hostname, respectively.
     def initialize(options = {})
       @event_fields = Set.new([:time, :service, :host, :description, :metric, :tags, :ttl])
       @msg_fields = Set.new([:ok, :error, :states, :query, :events])
-      @localhost = Socket.gethostname
       @generated_service = "#{$0};#{$PID}"
 
       default_opts = {server: "localhost:5555",
@@ -16,10 +15,12 @@ module Riemann::Experiment
                       read_timeout: 2,
                       write_timeout: 2 }
 
-      # default_event_fields, other_options = options.each.partition {|o| event_fields.include?(o) }
-      @service = options.delete(:service)
-      @host = options.delete(:host)
-      @tags = options.delete(:tags) || []
+      @default_service = options.delete(:service)
+      @default_host = options.delete(:host) || Socket.gethostname
+      @default_tags = options.delete(:tags)
+      @default_ttl = options.delete(:ttl)
+      @pending_events = []
+
 
       @keepalive_active = options.delete(:keepalive_active) || true
       @keepalive_idle   = options.delete(:keepalive_idle) || 60
@@ -36,71 +37,24 @@ module Riemann::Experiment
       setsockopt(::Socket::SOL_TCP,    ::Socket::TCP_KEEPCNT  , @keepalive_count)
     end
 
-    def send_event(fields = {})
-      evkeys = Set.new(fields.keys)
+    def add_event(*rest)
+      e = Riemann::Experiment::Event.new(self)
+      e.build(*rest)
+      @pending_events.push(e)
+    end
 
-      e = Event.new
-
-      if evkeys.include?(:time)
-        e.time = fields[:time].to_i
-      else
-        e.time = Time.now.to_i
-      end
-
-      if evkeys.include?(:service)
-        e.service = fields[:service].to_s
-      elsif @service
-        if @service != :default
-          e.service = @service
-        else
-          e.service = @generated_service
-        end
-      end
-
-      if evkeys.include?(:host)
-        e.host = fields[:host].to_s
-      elsif @host
-        if @host != :default
-          e.host = @host
-        else
-          e.host = @localhost
-        end
-      end
-
-      if evkeys.include?(:description)
-        e.description = fields[:description].to_s
-      end
-
-      if evkeys.include?(:tags) or @tags.length > 0
-        e.tags = fields[:tags].to_a + @tags.to_a
-      end
-
-      if evkeys.include?(:ttl) or @ttl
-        e.ttl = fields[:ttl] || @ttl
-      end
-
-      case fields[:metric]
-      when Integer
-        e.metric_sint64 = fields[:metric]
-      when Float
-        e.metric_d = fields[:metric]
-      end  # BigDecimal? Anything else?
-
-      e.attributes = (evkeys - @event_fields - @msg_fields).to_a.map {|k|
-          a = Attribute.new
-          a.key, a.value = k.to_s, fields[k].to_s
-          a
+    def send_message(**p)
+      m = ::Msg.new
+      m.ok = p[:ok] if p.has_key?(:ok)
+      m.error = p[:error] if p.has_key?(:error)
+      m.query = p[:query] if p.has_key?(:query)
+      @pending_events.each {|e|
+        e.maybe_apply_defaults
+        m.events << e.protobuf
       }
-
-      m = Msg.new
-      if fields[:ok] == true
-        m.ok = true
-      elsif fields[:ok] == false
-        m.ok = false
-      end
-      m.error = fields[:error].to_s if fields[:error]
-      m.events << e
-      exchange(m)
+      exchange(m.to_s)
+      @pending_events = []
+      m
     end
 
     # Writes a riemann message to socket.
