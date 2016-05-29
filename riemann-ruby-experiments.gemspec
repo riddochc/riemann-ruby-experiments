@@ -7,11 +7,12 @@ Gem::Specification.new do |s|
   s.description = "Just another client, to experiment with."
   s.authors     = ["Chris Riddoch"]
   s.email       = "riddochc@gmail.com"
-  s.date        = "2016-05-20"
+  s.date        = "2016-05-28"
   s.files       = ["Gemfile",
                    "README.adoc",
                    "Rakefile",
                    "data/riemann.proto",
+                   "lib/riemann-ruby-experiments/event.rb",
                    "lib/riemann-ruby-experiments/main.rb",
                    "lib/riemann-ruby-experiments/riemann.pb.rb",
                    "lib/riemann-ruby-experiments/version.rb",
