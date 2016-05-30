@@ -47,7 +47,11 @@ module Riemann::Experiment
       m = ::Msg.new
       m.ok = p[:ok] if p.has_key?(:ok)
       m.error = p[:error] if p.has_key?(:error)
-      m.query = p[:query] if p.has_key?(:query)
+      if p.has_key?(:query)
+        q = Query.new
+        q.string = p[:query]
+        m.query = q
+      end
       @pending_events.each {|e|
         e.maybe_apply_defaults
         m.events << e.protobuf
@@ -55,6 +59,21 @@ module Riemann::Experiment
       r = exchange(m.to_s)
       @pending_events = []
       r
+    end
+
+    # Query the riemann server for events.
+    # Skips the queue of otherwise pending events.
+    def [](querystring)
+      m = Msg.new
+      q = Query.new
+      q.string = querystring
+      m.query = q
+      r = exchange(m.to_s)
+      if !r.nil? && r.ok == true
+        r.events
+      else
+        []
+      end
     end
 
     # Writes a riemann message to socket.
