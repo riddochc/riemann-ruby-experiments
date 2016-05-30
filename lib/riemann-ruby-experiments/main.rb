@@ -37,7 +37,8 @@ module Riemann::Experiment
     end
 
     def add_event(*rest)
-      e = Riemann::Experiment::Event.new(self)
+      e = Riemann::Experiment::Event.new()
+      e.setup(self)
       e.time = Time.now.to_i
       e.build(*rest)
       @pending_events.push(e)
@@ -45,7 +46,11 @@ module Riemann::Experiment
 
     def send_message(**p)
       m = ::Msg.new
-      m.ok = p[:ok] if p.has_key?(:ok)
+      if p[:ok] == true
+        m.ok = true
+      elsif p[:ok] == false
+        m.ok = false
+      end
       m.error = p[:error] if p.has_key?(:error)
       if p.has_key?(:query)
         q = Query.new
@@ -70,7 +75,7 @@ module Riemann::Experiment
       m.query = q
       r = exchange(m.to_s)
       if !r.nil? && r.ok == true
-        r.events
+        r.events.map {|e| Riemann::Experiment::Event.load(e) }
       else
         []
       end

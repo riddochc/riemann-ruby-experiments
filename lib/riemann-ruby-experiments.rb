@@ -4,6 +4,7 @@ require "protocol_buffers"
 require "net/tcp_client"
 require "English"
 require 'set'
+require 'date'
 
 module Riemann
 end

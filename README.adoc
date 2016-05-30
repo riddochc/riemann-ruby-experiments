@@ -27,21 +27,43 @@ Include the following line in your Gemfile:
 
 Then, you can use it like this:
 
-  c = Riemann::Experiment::Client.new(server: "localhost:5555", service: "A new riemann logger!")
-  h = {time: Time.now.to_i,
+  client = Riemann::Experiment::Client.new(server: "localhost:5555", service: "A new riemann logger!")
+  e1 = {time: Time.now.to_i,
        description: "An event of some sort",
        metric: 42.15,
        anotherkey: "anothervalue"}
-  c.add_event(h)
-  
-  h2 = {time: Time.now.to_i, description: "Another event", metric: 73}
-  c.add_event(h2)
-  
-  response = c.send_message(:ok => "ok")
+  client.add_event(e1)
+
+  e2 = {time: Time.now.to_i, description: "Another event", metric: 73}
+  client.add_event(e2)
+
+  response = client.send_message()
 
   if response.ok == 'ok'
     # acknowledged by server...
   end
+
+You can also send queries to the Riemann server:
+
+  client = Riemann::Experiment::Client.new()
+  events = client['service = "http/head/mysite"']
+  puts events.first.roundtrip
+
+New attributes can be assigned to an `Riemann::Experiment::Event` object as though
+they were defined on the object with simple attr_accessors.  To create events
+yourself, make sure to call `setup()` on them, passing the client, before doing
+other manipulations (and especially before serializing) in order to make sure
+that client-wide default values are applied correctly.
+
+  e = Riemann::Experiment::Event.new
+  e.setup(client)
+  e.time = Time.now
+  e.website = "http://example.com/"
+  Base64.strict_encode64(e)  # Just for illustration:
+    => "CKyWs7oFGiMuL3JpZW1hbm4tcnVieS1leHBlcmltZW50cy5yYjsxMDU4NyIFdGh5bWVKHgoHd2Vic2l0ZRITaHR0cDovL2V4YW1wbGUuY29tLw=="
+
+For most purposes, though, it's easier to just pass a hash of field values to
+the client's `add_event()` and let it take care of the details.
 
 == Contributing
 
