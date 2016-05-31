@@ -1,13 +1,13 @@
 Gem::Specification.new do |s|
   s.name        = "riemann-ruby-experiments"
-  s.version     = "0.0.2"
+  s.version     = "0.0.3"
   s.licenses    = ["LGPL-3.0"]
   s.platform    = Gem::Platform::RUBY
   s.summary     = "A Riemann client for ruby"
   s.description = "Just another client, to experiment with."
   s.authors     = ["Chris Riddoch"]
   s.email       = "riddochc@gmail.com"
-  s.date        = "2016-05-29"
+  s.date        = "2016-05-30"
   s.files       = ["Gemfile",
                    "README.adoc",
                    "Rakefile",

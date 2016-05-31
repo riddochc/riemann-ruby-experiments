@@ -2,7 +2,7 @@
 Chris Riddoch <riddochc@gmail.com>
 :language: ruby
 :homepage: https://syntacticsugar.org/projects/riemann-ruby-experiments
-:revnumber: 0.0.2
+:revnumber: 0.0.3
 :revdate: 2016-05-29
 
 == Description
@@ -72,12 +72,6 @@ Pull requests welcome.
 == Contributors
 
 * Chris Riddoch
-
-== History
-
-=== Version 0.0.1
-
-* Initial release, yay!
 
 == License
 
