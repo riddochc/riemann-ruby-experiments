@@ -3,7 +3,7 @@ name: riemann-ruby-experiments
 toplevel_module: Riemann::Experiments
 dependencies:
   ruby-protocol-buffers: ">= 1.6.1"
-  net_tcp_client: ">= 2.0.0"
+  net_tcp_client: ">= 2.0.1"
 dev_dependencies:
   rake: ">=10.3"
   yard: "~> 0.8.7"

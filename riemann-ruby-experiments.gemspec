@@ -1,13 +1,13 @@
 Gem::Specification.new do |s|
   s.name        = "riemann-ruby-experiments"
-  s.version     = "0.0.3"
+  s.version     = "0.0.4"
   s.licenses    = ["LGPL-3.0"]
   s.platform    = Gem::Platform::RUBY
   s.summary     = "A Riemann client for ruby"
   s.description = "Just another client, to experiment with."
   s.authors     = ["Chris Riddoch"]
   s.email       = "riddochc@gmail.com"
-  s.date        = "2016-05-30"
+  s.date        = "2016-06-02"
   s.files       = ["Gemfile",
                    "README.adoc",
                    "Rakefile",
@@ -22,7 +22,7 @@ Gem::Specification.new do |s|
   s.homepage    = "https://syntacticsugar.org/projects/riemann-ruby-experiments"
 
   s.add_dependency "ruby-protocol-buffers", ">= 1.6.1"
-  s.add_dependency "net_tcp_client", ">= 2.0.0"
+  s.add_dependency "net_tcp_client", ">= 2.0.1"
 
   s.add_development_dependency "rake", "=10.5.0"
   s.add_development_dependency "asciidoctor", "=1.5.5.dev"
