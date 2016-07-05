@@ -2,33 +2,62 @@
 
 require 'yaml'
 require 'find'
-require 'asciidoctor'
 require 'erb'
-require 'pry'
+require 'set'
 
-def installed_gem_version(name)
-  IO.popen(["gem", "list", "-l", name], 'r') do |io|
-    # this regex is using lookahead/behind to match things within \( and \), non-greedily.
-    io.readlines.grep(/^#{name}\s/).first[/(?<=\().*?(?=\))/].split(', ').first
-  end
+begin
+  require 'asciidoctor'
+  require 'yard'
+  require 'rugged'
+  require 'ruby-builtin-requireables'
+rescue LoadError => e
+  puts "You're missing the #{e.message[/\S+$/]} gem, some tasks may not work as expected."
+  exit -1
+end
+
+def installed_gem_versions
+  rx = /^(?<name>\S+)\s\((?<versions>[^)]+)/
+  gems = {}
+  IO.popen(%w(gem list -l)).readlines
+    .map {|line| m = rx.match(line) }
+    .compact
+    .map {|m| gems[m['name']] = m['versions'].split(', ')
+                                  .map {|v| begin
+                                              Gem::Version.new(v)
+                                            rescue ArgumentError
+                                              nil
+                                            end
+                                  }.compact.max_by(&:itself)
+         }
+  gems
 end
 
 def filtered_project_files()
   Dir.chdir __dir__ do
     Find.find(".").reject {|f|
       !File.file?(f) ||
-       f =~ %r{^\./(.git|tmp)} ||
+       f =~ %r{^\./(.git|tmp|search)} ||
        f =~ %r{\.(so|gem)$}
     }.map {|f| f.sub %r{^\./}, '' }
   end
+end
+
+def repo_clean?(r)
+  retval = true
+  r.status {|f, status|
+    unless status.include?(:ignored)
+      retval = false ; break
+    end
+  }
+  retval
 end
 
 adoc = Asciidoctor.load_file("README.adoc")
 summary = adoc.sections.find {|s| s.name == "Description" }.blocks[0].content.gsub(/\n/, ' ')
 description = adoc.sections.find {|s| s.name == "Description" }.blocks[1].content.gsub(/\n/, ' ')
 config = YAML.load_file(File.join(__dir__, "project.yaml"))
-project = config.fetch('name', File.split(File.expand_path(__dir__)).last)
-toplevel_module = config.fetch('toplevel_module') { project.capitalize }
+project = adoc.doctitle # config.fetch('name', File.split(File.expand_path(__dir__)).last)
+toplevel_module = project.split(/[^A-Za-z0-9]/).map(&:capitalize).join # config.fetch('toplevel_module') { project.capitalize }
 version = adoc.attributes['revnumber']
 dependencies = config.fetch('dependencies', {})
 if dependencies.nil?
@@ -39,11 +68,8 @@ if dev_dependencies.nil?
   dev_dependencies = {}
 end
 license = config.fetch('license') { "LGPL-3.0" }
-
-#["rake", "asciidoctor", "yard", "pry", "rspec", "rspec-sequel-formatter", "#{project}-tests"]
-["rake", "asciidoctor", "yard", "pry"].each do |dep|
-  dev_dependencies[dep] = dev_dependencies.fetch(dep) {|d| "=#{installed_gem_version(d)}" }
-end
+files = filtered_project_files()
+exec_files = filtered_project_files().select {|f| f.start_with?("bin/") }.map {|f| f.gsub(%r{bin/}, '') }
 
 gemspec_template = <<GEMSPEC
 Gem::Specification.new do |s|
@@ -51,13 +77,16 @@ Gem::Specification.new do |s|
   s.version     = "<%= version %>"
   s.licenses    = ["<%= license %>"]
   s.platform    = Gem::Platform::RUBY
-  s.summary     = "<%= summary %>"
-  s.description = "<%= description %>"
+  s.summary     = <%= summary.inspect %>
+  s.description = <%= description.inspect %>
   s.authors     = ["<%= adoc.author %>"]
   s.email       = "<%= adoc.attributes['email'] %>"
   s.date        = "<%= Date.today %>"
-  s.files       = [<%= all_files.map{|f| '"' + f + '"' }.join(",\n                   ") %>]
   s.homepage    = "<%= adoc.attributes['homepage'] %>"
+  s.files       = [<%= files.map{|f| '"' + f + '"' }.join(",\n                   ") %>]
+% if exec_files.length > 0
+  s.executables = [<%= exec_files.map{|f| '"' + f + '"' }.join(",\n                   ") %>]
+% end
 
 % dependencies.each_pair do |req, vers|
   s.add_dependency "<%= req %>", "<%= vers %>"
@@ -69,12 +98,19 @@ Gem::Specification.new do |s|
 end
 GEMSPEC
 
-task default: ["lib/riemann-ruby-experiments/riemann.pb.rb",
+task default: [:clean, "lib/riemann-ruby-experiments/riemann.pb.rb",
                :gen_version, :gemspec, :gemfile, :build]
 
 task "lib/riemann-ruby-experiments/riemann.pb.rb" do
   sh "ruby-protoc", "data/riemann.proto"
   mv "data/riemann.pb.rb", "lib/riemann-ruby-experiments/riemann.pb.rb"
+end
+
+task :git_check do
+  repo = Rugged::Repository.new(".")
+  unless repo_clean?(repo)
+    puts "Warning: repository contains uncommitted changes!"
+  end
 end
 
 task :gen_version do
@@ -90,21 +126,38 @@ task :gen_version do
 end
 
 task :gemspec => [:gen_version] do
-  files_in_git = IO.popen(["git", "ls-files"], 'r') { |io| io.readlines.map {|l| l.chomp } }
-  all_files = filtered_project_files()
-  if all_files - files_in_git
-    puts "Looks like there's some files uncommitted."
+  requires = filtered_project_files()
+    .map {|f| File.readlines(f).grep (/^\s*require(?!_relative)\b/) }
+    .flatten
+    .map {|line| line.split(/['"]/).at(1) }
+    .compact
+    .uniq
+    .grep_v(/<%=|%>|#|\$/)
+  requires.delete(project)
+
+  builtin_requireables = IO.popen("ruby-builtin-requireables").readlines.map(&:chomp)
+
+  available_gems = installed_gem_versions()
+  gem_names = available_gems.keys.to_set
+  basic_requirements = {}
+  ["rake", "asciidoctor", "yard", "pry", "rugged", "ruby-builtin-requireables"].each {|g|
+    basic_requirements[g] = "= #{available_gems[g]}"
+  }
+
+  req_names = basic_requirements.keys.to_set
+  if !gem_names.superset?(req_names)
+    puts "Missing dev dependencies: " + (req_names - gem_names).to_a.join(', ')
+  else
+    dev_dependencies = basic_requirements.merge(dev_dependencies)
   end
 
-  requires = all_files.grep(/\.rb$/).
-                           map {|f| File.readlines(f).grep (/^\s*require(?!_relative)\b/) }.
-                           flatten.
-                           map {|line| line.split(/['"]/).at(1).split('/').at(0) }.
-                           uniq
+  # Catch cases like 'require "some_gem/subpart"'
+  preslash_subgems = Regexp.new("^" + Regexp.union(dev_dependencies.keys + dependencies.keys).to_s + "/")
+  subgem_dependencies = requires.grep(preslash_subgems)
 
-  missing_deps = requires - dependencies.keys
+  missing_deps = (requires - builtin_requireables - dependencies.keys - dev_dependencies.keys - subgem_dependencies)
   if missing_deps.length > 0
-    puts "There may be some dependencies not listed for the gemspec:"
+    puts "There may be some dependencies not listed in project.yml:"
     puts missing_deps.join(", ")
   end
 
@@ -115,13 +168,16 @@ task :gemspec => [:gen_version] do
 end
 
 task :gemfile do
-  File.open("Gemfile", 'w') do |f|
-    f.puts "source 'https://rubygems.org"
-    f.puts "gemspec"
+  unless File.exists?("Gemfile")
+    File.open("Gemfile", 'w') do |f|
+      f.puts "source 'https://rubygems.org'"
+      f.puts "gemspec"
+      f.puts
+    end
   end
 end
 
-task :build => [:gemspec] do
+task :build => [:git_check, :gemspec] do
   system "gem build #{project}.gemspec"
 end
 
@@ -129,7 +185,46 @@ task :install => [:build] do
   system "gem install ./#{project}-#{version}.gem"
 end
 
-task :clean do
-  rm_f "./#{project}-#{version}.gem"
-  rm_rf "tmp"
+task :readme do
+  sh "asciidoctor", "README.adoc"
 end
+
+YARD::Rake::YardocTask.new do |t|
+  t.files   = ['lib/**/*.rb']   # optional
+  t.options = ['asciidoc'] # optional
+  t.stats_options = ['--list-undoc']         # optional
+end
+
+task :starscope => [:search_clean] do
+  File.open("cscope.files", "w") {|flist|
+    filtered_project_files().grep(%r{^lib/.*\.rb$})
+      .each {|f| flist.puts(f) }
+  }
+  sh *%w{starscope -e cscope}
+  sh *%w{ctags --fields=+i -n -L cscope.files}
+  mkdir "search"
+  rm "cscope.files"
+  %w[.starscope.db cscope.out tags].each {|f| mv f, "search" }
+end
+
+task :codequery => [:starscope] do
+  cd "search" do
+    cmd = ["cqmakedb", "-s", "#{project}-codequery.db"]
+    cmd += %w[-c cscope.out -t tags -p]
+    sh *cmd
+  end
+end
+
+task :search_clean do
+  rm_rf "./starscope"
+end
+
+task :clean => [:search_clean] do
+  rm_f "./#{project}-#{version}.gem"
+  rm_f "./lib/#{project}/version.rb"
+  rm_f "./#{project}.gemspec"
+  rm_f "./README.html"
+  rm_rf "./doc"
+  rm_rf "./.yardoc"
+end
+

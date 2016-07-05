@@ -8,4 +8,5 @@ dev_dependencies:
   rake: ">=10.3"
   yard: "~> 0.8.7"
   asciidoctor: "~> 1.5.2"
+  ruby-builtin-requireables: ">= 0.1"
 
